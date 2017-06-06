@@ -80,7 +80,7 @@ s2 = 7A2FCFA4B9F920FDC62EC8699A9CACFDB7B1770CCC07417C13E6C61273482DBF
 # s2*k1 - s1*k1*r1i*r2 = z1 - z1*r1i*r2 + s2*tw1 - s2*tw2
 # k1*(s2 - s1*r1i*r2) = z1*(1 - r1i*r2) + s2*(tw1 - tw2)
 #
-# k1 = (z1*(1 - r1i*r2) + s2*(tw1 - tw2) * 1/(s2 - s1*r1i*r2)
+# k1 = (z1*(1 - r1i*r2) + s2*(tw1 - tw2)) * 1/(s2 - s1*r1i*r2)
 
 define punish_double_commit_api(r1, s1, tw1, r2, s2, tw2, z1, n){
 
