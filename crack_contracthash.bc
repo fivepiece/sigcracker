@@ -109,5 +109,4 @@ define void punish_double_commit(r1, s1, tw1, r2, s2, tw2, z1, n){
     d1; d2; d3; d4;
 }
 
-n1 = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 punish_double_commit(r1, s1, tw1, r2, s2, tw2, z1, n1)
