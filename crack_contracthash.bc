@@ -1,0 +1,113 @@
+#!/bin/bc
+
+# d1 = C94EA5E869CCC323A52AF0EF9DBA63200EE7342582546F9CEAF8290BF0E4B9C1
+# c1 = 3702934E0C64D6A37BCA50B29FF711A1E095F90F57BA31DB07DAB479C2D3D36D
+# c2 = 408C713BB9CDDD2CF6427F1F5DE277E1FCF4CC9F2E243C2573955C81B9308361
+# 
+# z0 = A3EE6DCD0687B07EFDA564D2EEF1C21945D9625F2747B670FBAD753B9FBD002D
+
+z1 = D232BACF4BAD3AFCA83572099C0C9AF8C451FE6FD57F4B5E0A5FAF6113036227
+
+#
+# (k0, N) = rfc6979(d1, z0)
+#
+# k0 = CE0514ECEC453FC0F08AF53FA455B765F056E209894D88C22CCF77CEB92F2644
+# N = 02EE238B59B02B22811DB1CF97044CF4834533AC6E49AF84A271196CC86207D52D
+#
+# tweak1 = sha256( N||c1 )
+# tweak2 = sha256( N||c2 )
+#
+
+tw1 = 6C0E80C3E9FF156AB699B63988030123E091B5850CCB503E94FB22EFDCE419AD
+tw2 = 08012DD5C28CD46A36EE782050DF001D26B6B986A1EF78A808E0AA19FA627D5C
+
+# k1 = mod(k0 + tw1, nn)
+# k2 = mod(k0 + tw2, nn)
+
+# k1 = 3A1395B0D644552BA724AB792C58B88B1639BAA7E6D038C501F83C31C5DCFEB0
+# k2 = D60642C2AED2142B27796D5FF534B783170D9B902B3D016A35B021E8B391A3A0
+
+# k1 * G = R1
+# R1 = 02600EB72C32EA2FA89B14A6C77AB481F622F30A40DD57D86C6B47142FFABD1753
+#
+# k2 * G = R2
+# R2 = 028A87CD5F5E4F4DBAFCDB8FB0437100C1C43EC50E674D6F1AEF6AC6E43C4E57FB
+
+r1 = 600EB72C32EA2FA89B14A6C77AB481F622F30A40DD57D86C6B47142FFABD1753
+r2 = 8A87CD5F5E4F4DBAFCDB8FB0437100C1C43EC50E674D6F1AEF6AC6E43C4E57FB
+
+s1 = 0847757AB34BB53FB39F9162C8166C9CC884C9391D0006B3068B54672AC8E6AD
+s2 = 7A2FCFA4B9F920FDC62EC8699A9CACFDB7B1770CCC07417C13E6C61273482DBF
+
+# k1 = k0 + tw1
+# k2 = k0 + tw2
+# =>
+# k0 = k1 - tw1
+# k2 = k1 - tw1 + tw2
+#
+# k2 - k1 = tw2 - tw1
+#
+# ((s1 * k1) * G) = (z1 * G) + ((r1 * d1) * G)
+# ((s2 * k2) * G) = (z1 * G) + ((r2 * d1) * G)
+#
+# subtract the second from the fist:
+#
+# (s1*k1 - s2*k2) * G = (r1*d1 - r2*d1) * G
+# (s1*k1 - s2*k2) * G = d1*(r1 - r2) * G
+#
+# s1*k1 - s2*k2 = d1(r1 - r2)
+# s1*k1 - s2*(k1 - tw1 + tw2) = d1(r1 - r2)
+# 
+# and also..
+# d1 = (s1*k1 - z1) * 1/r1
+# =>
+# s1*k1 - s2*(k1 - tw1 + tw2) = ((s1*k1 - z1) * r1i) * (r1 - r2)
+# ... = (s1*k1*r1i - z1*r1i) * (r1 - r2) 
+# ... = s1*k1 - s1*k1*r1i*r2 - z1 + z1*r1i*r2
+# =>
+# s1*k1 - s2*(k1 - tw1 + tw2) = s1*k1 - s1*k1*r1i*r2 - z1 + z1*r1i*r2
+#
+# subtract s1*k1
+# -s2*(k1 - tw1 + tw2) = - s1*k1*r1i*r2 - z1 + z1*r1i*r2
+#
+# multiply by (-1)
+# s2*(k1 - tw1 + tw2) = s1*k1*r1i*r2 + z1 - z1*r1i*r2
+#
+# arrange variables, k1 on the left hand side
+# s2*k1 - s2*tw1 + s2*tw2 = s1*k1*r1i*r2 + z1 - z1*r1i*r2
+# s2*k1 - s1*k1*r1i*r2 = z1 - z1*r1i*r2 + s2*tw1 - s2*tw2
+# k1*(s2 - s1*r1i*r2) = z1*(1 - r1i*r2) + s2*(tw1 - tw2)
+#
+# k1 = (z1*(1 - r1i*r2) + s2*(tw1 - tw2) * 1/(s2 - s1*r1i*r2)
+
+define punish_double_commit_api(r1, s1, tw1, r2, s2, tw2, z1, n){
+
+    auto r1i;
+
+    r1i = invmod(r1, n);
+    return mod( (z1*(1 - r1i*r2) + s2*(tw1 - tw2)) * invmod(s2 - s1*r1i*r2, n), n)
+}
+
+define void punish_double_commit(r1, s1, tw1, r2, s2, tw2, z1, n){
+
+    auto k1, k2, k3, k4, d1, d2 ,d3, d4;
+
+    k1 = punish_double_commit_api(r1, s1, tw1, r2, s2, tw2, z1, n);
+    k2 = punish_double_commit_api(r1, -s1, tw1, r2, s2, tw2, z1, n);
+    k3 = punish_double_commit_api(r1, s1, tw1, r2, -s2, tw2, z1, n);
+    k4 = punish_double_commit_api(r1, -s1, tw1, r2, -s2, tw2, z1, n);
+
+    d1 = mod(mod((s1*k1)-z1,n) * invmod(r1,n),n);
+    d2 = mod(mod((s1*k2)-z1,n) * invmod(r1,n),n);
+    d3 = mod(mod((s1*k3)-z1,n) * invmod(r1,n),n);
+    d4 = mod(mod((s1*k4)-z1,n) * invmod(r1,n),n);
+
+    print "\npossible k values :\n\n";
+    k1; k2; k3; k4;
+
+    print "\npossible d values :\n\n";
+    d1; d2; d3; d4;
+}
+
+n1 = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+punish_double_commit(r1, s1, tw1, r2, s2, tw2, z1, n1)
